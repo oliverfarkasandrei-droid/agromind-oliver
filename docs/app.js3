@@ -1,0 +1,204 @@
+// ===== FERTILIZER =====
+class FertilizerPage extends Page {
+    render(container) {
+        container.innerHTML = '';
+        const hdr = this.createEl('div', 'page-header');
+        hdr.appendChild(this.createEl('h2', null, '⚗️ Calculator Îngrășăminte'));
+        container.appendChild(hdr);
+
+        const wrap = this.createEl('div', ['glass-panel']);
+        wrap.appendChild(this.createEl('h3', null, 'Parametri calcul'));
+        const form = this.createEl('form', 'form'); form.id = 'fert-form';
+        form.appendChild(this.sel('fert-crop', 'Tip cultură', 'legume', [['legume','Legume'],['cereale','Cereale'],['fructe','Fructe'],['aromatice','Plante aromatice']]));
+        form.appendChild(this.num('fert-area', 'Suprafață (ha)', '1', 0.01, 1000));
+        form.appendChild(this.sel('fert-type', 'Tip îngrășământ', 'NPK 20-20-20', [['NPK 20-20-20','NPK 20-20-20'],['NPK 15-15-15','NPK 15-15-15'],['Azotat de amoniu','Azotat de amoniu'],['Superfosfat','Superfosfat'],['Sulfat de potasiu','Sulfat de potasiu'],['Îngrășământ organic','Îngrășământ organic']]));
+        form.appendChild(this.sel('fert-phase', 'Fază de creștere', '1', [['1','Răsărire'],['1.5','Vegetație'],['2','Florire'],['2.5','Coacere']]));
+        const btn = this.createEl('button', 'btn-primary', 'Calculează doza optimă');
+        btn.type = 'submit';
+        btn.style.marginTop = '8px';
+        form.appendChild(btn);
+        this.res = this.createEl('div'); this.res.id = 'fert-result';
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const crop = form.querySelector('#fert-crop').value;
+            const area = parseFloat(form.querySelector('#fert-area').value) || 0;
+            const fType = form.querySelector('#fert-type').value;
+            const fPhase = parseFloat(form.querySelector('#fert-phase').value) || 1;
+            const fertMap = {
+                'NPK 20-20-20':{n:20,p:20,k:20,price:15},
+                'NPK 15-15-15':{n:15,p:15,k:15,price:12},
+                'Azotat de amoniu':{n:34,p:0,k:0,price:8},
+                'Superfosfat':{n:0,p:20,k:0,price:10},
+                'Sulfat de potasiu':{n:0,p:0,k:50,price:14},
+                'Îngrășământ organic':{n:5,p:3,k:4,price:6},
+            };
+            const f = fertMap[fType];
+            if (!f || area <= 0) { Toast.show('Completează toate câmpurile corect', 'error'); return; }
+            const rates = {legume:0.05,cereale:0.03,fructe:0.04,aromatice:0.02};
+            const baseRate = rates[crop] || 0.04;
+            const qty = Math.round(area * baseRate * fPhase * 1000) / 1000;
+            const cost = Math.round(qty * f.price * 100) / 100;
+            const nQty = Math.round(qty * f.n / 100 * 100) / 100;
+            const pQty = Math.round(qty * f.p / 100 * 100) / 100;
+            const kQty = Math.round(qty * f.k / 100 * 100) / 100;
+
+            this.res.innerHTML = '';
+            const box = this.createEl('div', 'result-box');
+            box.appendChild(this.createEl('h4', null, '📊 Rezultat calcul'));
+            const g = this.createEl('div', 'cards');
+            g.appendChild(this.mkCard('🔹', Utils.fmtd(qty, 2), 't necesari'));
+            g.appendChild(this.mkCard('💰', Utils.fmtd(cost, 2), 'RON cost'));
+            g.appendChild(this.mkCard('N', Utils.fmtd(nQty, 2), 'kg Azot (N)'));
+            g.appendChild(this.mkCard('P', Utils.fmtd(pQty, 2), 'kg Fosfor (P)'));
+            g.appendChild(this.mkCard('K', Utils.fmtd(kQty, 2), 'kg Potasiu (K)'));
+            box.appendChild(g);
+            const det = this.createEl('p', null, `Cultură: ${crop} · Suprafață: ${area} ha · Fază: ${fPhase===1?'Răsărire':fPhase===1.5?'Vegetație':fPhase===2?'Florire':'Coacere'} · Îngrășământ: ${fType}`);
+            box.appendChild(det);
+            this.res.appendChild(box);
+            Toast.show('Calcul generat cu succes', 'success');
+        });
+        wrap.appendChild(form);
+        wrap.appendChild(this.res);
+        container.appendChild(wrap);
+    }
+    sel(id, label, def, opts) {
+        const wrap = this.createEl('div'); wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '4px';
+        wrap.appendChild(this.createEl('label', null, label));
+        const s = this.createEl('select'); s.id = id;
+        for (const [v, t] of opts) { const o = this.createEl('option', null, t); o.value = v; if (v===def) o.selected=true; s.appendChild(o); }
+        wrap.appendChild(s); return wrap;
+    }
+    num(id, label, def, min, max) {
+        const wrap = this.createEl('div'); wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '4px';
+        wrap.appendChild(this.createEl('label', null, label));
+        const i = this.createEl('input'); i.type = 'number'; i.id = id; i.value = def; i.min = min; i.max = max; i.step = '0.01';
+        wrap.appendChild(i); return wrap;
+    }
+    mkCard(icon, val, lb) {
+        const c = this.createEl('div', 'card');
+        c.style.textAlign = 'center';
+        c.appendChild(this.createEl('div', 'card-icon', icon));
+        c.appendChild(this.createEl('div', 'card-value', val));
+        c.appendChild(this.createEl('div', 'card-label', lb));
+        return c;
+    }
+}
+
+// ===== JOURNAL =====
+class JournalPage extends Page {
+    render(container) {
+        container.innerHTML = '';
+        const hdr = this.createEl('div', 'page-header');
+        hdr.appendChild(this.createEl('h2', null, '📝 Jurnal Recolte'));
+        container.appendChild(hdr);
+
+        const formWrap = this.createEl('div', 'glass-panel');
+        const form = this.createEl('form', 'form'); form.id = 'journal-form';
+        const cropNames = this.store.data.crops.map(c => c.name).filter(Boolean);
+
+        const dl = this.createEl('datalist'); dl.id = 'crop-datalist';
+        for (const n of cropNames) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }
+        form.appendChild(dl);
+
+        form.appendChild(this.textInp('j-crop', 'Cultură', '', true, 'ex: Tomate'));
+        form.querySelector('#j-crop').setAttribute('list', 'crop-datalist');
+        form.appendChild(this.dateInp('j-date', null, new Date().toISOString().split('T')[0]));
+        form.appendChild(this.numInp('j-qty', 'Cantitate (kg)', '', true, 0, 100000));
+        form.appendChild(this.numInp('j-price', 'Preț/kg (RON)', '', false, 0, 10000));
+        form.appendChild(this.textInp('j-notes', 'Observații', '', false));
+        const btns = this.createEl('div'); btns.style.display = 'flex'; btns.style.gap = '8px';
+        btns.appendChild(this.createEl('button', 'btn-primary', 'Adaugă intrare'));
+        formWrap.appendChild(form); formWrap.appendChild(btns);
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const [crop, errC] = Validators.nonEmpty(form.querySelector('#j-crop').value, 'Cultura');
+            const [qty, errQ] = Validators.num(form.querySelector('#j-qty').value, 0.01, 100000);
+            if (errC) { Toast.show(errC, 'error'); return; }
+            if (errQ) { Toast.show(errQ, 'error'); return; }
+            const entry = {
+                id: 0,
+                crop,
+                date: form.querySelector('#j-date').value,
+                qty,
+                price: parseFloat(form.querySelector('#j-price').value) || null,
+                notes: form.querySelector('#j-notes').value || '',
+            };
+            this.store.addJournal(entry);
+            Toast.show('Intrare adăugată în jurnal', 'success');
+            form.reset(); form.querySelector('#j-date').value = new Date().toISOString().split('T')[0];
+            this.updateList();
+        });
+        container.appendChild(formWrap);
+
+        const tb = this.createEl('div', 'toolbar');
+        tb.appendChild(this.selSort('j-sort'));
+        const exBtn = this.createEl('button', 'btn-secondary', 'Export CSV');
+        exBtn.addEventListener('click', () => this.exportCSV());
+        tb.appendChild(exBtn);
+        container.appendChild(tb);
+
+        this.listEl = this.createEl('div', 'list'); this.listEl.id = 'journal-list';
+        container.appendChild(this.listEl);
+        this.updateList();
+    }
+    updateList() {
+        const sort = document.getElementById('j-sort')?.value || 'date-desc';
+        let items = [...this.store.data.journals];
+        if (sort === 'date-desc') items.sort((a, b) => b.date.localeCompare(a.date));
+        else items.sort((a, b) => a.date.localeCompare(b.date));
+        this.listEl.innerHTML = '';
+        if (!items.length) {
+            this.listEl.appendChild(this.createEl('p', null, 'Nicio intrare în jurnal. Adaugă prima intrare!'));
+            return;
+        }
+        for (const j of items) {
+            const it = this.createEl('div', 'list-item');
+            const div = this.createEl('div');
+            const val = j.price ? j.qty * j.price : 0;
+            const h4 = this.createEl('h4', null, j.crop + ' — ' + j.qty + ' kg' + (j.price ? ' (\u2248 ' + Utils.fmtd(val, 2) + ' RON)' : ''));
+            const p = this.createEl('p', null, Utils.fmtDate(j.date) + (j.notes ? ' · ' + j.notes : ''));
+            div.append(h4, p);
+            const btn = this.createEl('button', 'btn-secondary', '🗑️');
+            btn.style.color = 'var(--danger)';
+            btn.addEventListener('click', () => { this.store.deleteJournal(j.id); Toast.show('Intrare ștearsă', 'success'); this.updateList(); });
+            it.append(div, btn);
+            this.listEl.appendChild(it);
+        }
+    }
+    exportCSV() {
+        const rows = this.store.data.journals.map(j => [
+            j.date, j.crop, j.qty, j.price || '', j.price ? (j.qty*j.price).toFixed(2) : '', j.notes || ''
+        ]);
+        const csv = [['Data','Cultura','Cantitate_kg','Pret_kg','Valoare_RON','Observatii'], ...rows]
+            .map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'agromind-jurnal.csv'; a.click(); URL.revokeObjectURL(a.href);
+        Toast.show('CSV exportat cu succes!', 'success');
+    }
+    selSort(id) {
+        const s = this.createEl('select'); s.id = id;
+        s.innerHTML = '<option value="date-desc">Cele mai noi</option><option value="date-asc">Cele mai vechi</option>';
+        s.addEventListener('change', () => this.updateList());
+        return s;
+    }
+    textInp(id, label, val, req, ph) {
+        const w = this.createEl('div'); w.style.display='flex'; w.style.flexDirection='column'; w.style.gap='4px';
+        w.appendChild(this.createEl('label', null, label + (req?' *':'')));
+        const i = this.createEl('input'); i.type='text'; i.id=id; i.value=val; if(ph) i.placeholder=ph; i.required=!!req;
+        w.appendChild(i); return w;
+    }
+    dateInp(id, label, val) {
+        const w = this.createEl('div'); w.style.display='flex'; w.style.flexDirection='column'; w.style.gap='4px';
+        if (label) w.appendChild(this.createEl('label', null, label));
+        const i = this.createEl('input'); i.type='date'; i.id=id; i.value=val;
+        w.appendChild(i); return w;
+    }
+    numInp(id, label, val, req, min, max) {
+        const w = this.createEl('div'); w.style.display='flex'; w.style.flexDirection='column'; w.style.gap='4px';
+        w.appendChild(this.createEl('label', null, label + (req?' *':'')));
+        const i = this.createEl('input'); i.type='number'; i.id=id; i.value=val; i.required=!!req; i.min=min; i.max=max; i.step='0.01';
+        w.appendChild(i); return w;
+    }
+}

@@ -2,190 +2,76 @@
 <html lang="ro" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="AgroMind Premium - Asistent digital inteligent pentru agricultura mica">
-<title>AgroMind Premium</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="AgroMind Premium v2.1 — Asistent digital pentru agricultură. Gestionare culturi, diagnostic boli, prognoză meteo, calculator îngrășăminte.">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AgroMind Premium v2.1</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
+    <!-- Overlay mobil sidebar -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="brand">
-            <div class="brand-icon">🌾</div>
+            <span class="brand-icon">🌾</span>
             <div class="brand-text">
                 <h1>AgroMind</h1>
                 <span class="badge-premium">⭐ PREMIUM</span>
             </div>
+            <button class="btn-icon sidebar-close" id="sidebar-close">✕</button>
         </div>
-        <div class="nav-links">
-            <a href="#" class="nav-link active" data-page="dashboard">◈ Panou Principal</a>
-            <a href="#" class="nav-link" data-page="crops">🌱 Culturi</a>
-            <a href="#" class="nav-link" data-page="diseases">🦠 Boli</a>
-            <a href="#" class="nav-link" data-page="fertilizer">⚗️ Îngrășăminte</a>
-            <a href="#" class="nav-link" data-page="journal">📝 Jurnal</a>
-            <a href="#" class="nav-link" data-page="charts">📊 Grafice</a>
-            <a href="#" class="nav-link" data-page="weather">🌦️ Meteo</a>
-        </div>
+        <div class="nav-links" id="nav-links"></div>
         <div class="sidebar-footer">
             <button id="theme-toggle" class="btn-icon" title="Dark/Light">🌓</button>
             <button id="export-btn" class="btn-icon" title="Export CSV/JSON">📤</button>
-            <div class="connection-status" id="conn-status">●</div>
+            <span class="connection-status" id="conn-status" title="Online">●</span>
         </div>
     </nav>
+
+    <!-- Main Content -->
     <main class="content" id="main-content">
-        <!-- DASHBOARD -->
-        <div id="dashboard-page" class="page active">
-            <div class="page-header">
-                <h2>Panou Principal</h2>
-                <p class="subtitle">AgroMind Premium — AI pentru agricultura ta</p>
-            </div>
-            <div class="cards">
-                <div class="card glass">
-                    <div class="card-icon">🌱</div>
-                    <div class="card-value" id="dash-crops">0</div>
-                    <div class="card-label">Culturi</div>
-                    <div class="card-trend" id="trend-crops">↑ +0%</div>
-                </div>
-                <div class="card glass">
-                    <div class="card-icon">📝</div>
-                    <div class="card-value" id="dash-entries">0</div>
-                    <div class="card-label">Intrări jurnal</div>
-                </div>
-                <div class="card glass">
-                    <div class="card-icon">🦠</div>
-                    <div class="card-value" id="dash-diseases">0</div>
-                    <div class="card-label">Boli documentate</div>
-                </div>
-                <div class="card glass">
-                    <div class="card-icon">⚡</div>
-                    <div class="card-value" id="dash-ai-score">0</div>
-                    <div class="card-label">Sănătate ferma</div>
-                </div>
-            </div>
-            <div class="glass-panel">
-                <h3>🌾 Recomandări AI (sezon: <span id="current-season"></span>)</h3>
-                <div id="seasonal-recommendations"></div>
-            </div>
-            <div class="glass-panel">
-                <h3>📅 Calendar agricol</h3>
-                <div id="agri-calendar"></div>
-            </div>
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <button class="btn-icon hamburger" id="hamburger">☰</button>
+            <h2 class="mobile-title">AgroMind</h2>
+            <span class="badge-premium mobile-badge">⭐</span>
+        </header>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner"></div>
+            <p>Se încarcă...</p>
         </div>
+
+        <!-- Toast Container -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard-page" class="page active"></div>
 
         <!-- CROPS -->
-        <div id="crops-page" class="page">
-            <div class="page-header"><h2>🌱 Culturi</h2></div>
-            <div class="toolbar">
-                <input type="text" id="crop-search" placeholder="🔍 Caută culturi...">
-                <select id="crop-filter">
-                    <option value="">Toate categoriile</option>
-                    <option value="Legume">Legume</option>
-                    <option value="Cereale">Cereale</option>
-                    <option value="Fructe">Fructe</option>
-                    <option value="Plante aromatice">Plante aromatice</option>
-                </select>
-                <button id="btn-show-add" class="btn-primary">+ Adaugă</button>
-            </div>
-            <div id="crops-list" class="list"></div>
-            <div id="add-form" style="display:none">
-                <h3>Adaugă cultură nouă</h3>
-                <form id="crop-form" class="form">
-                    <input type="text" id="c-name" placeholder="Nume cultură" required>
-                    <select id="c-cat" required>
-                        <option value="">Categorie</option>
-                        <option>Legume</option><option>Cereale</option><option>Fructe</option><option>Plante aromatice</option>
-                    </select>
-                    <input type="text" id="c-season" placeholder="Sezon optim">
-                    <input type="text" id="c-soil" placeholder="Tip sol">
-                    <input type="text" id="c-water" placeholder="Necesități apă">
-                    <input type="text" id="c-temp" placeholder="Temperatură optimă (°C)">
-                    <button type="submit">Salvează</button>
-                    <button type="button" id="btn-cancel-add" class="btn-secondary">Anulează</button>
-                </form>
-            </div>
-        </div>
+        <div id="crops-page" class="page"></div>
 
         <!-- DISEASES -->
-        <div id="diseases-page" class="page">
-            <div class="page-header"><h2>🦠 Boli și Dăunători</h2></div>
-            <div class="toolbar">
-                <input type="text" id="disease-search" placeholder="🔍 Caută simptome sau nume...">
-                <button id="ai-diagnose-btn" class="btn-primary">🤖 Diagnostic AI</button>
-            </div>
-            <div id="diseases-list" class="list"></div>
-            <div class="glass-panel">
-                <h3>🔬 Diagnostic rapid inteligent</h3>
-                <p>Selectează simptomele observate pe plantă:</p>
-                <div id="symptoms-check" class="checkbox-grid"></div>
-                <button id="diagnose-btn" class="btn-primary">🔍 Analizează</button>
-                <div id="diagnosis-result"></div>
-            </div>
-        </div>
+        <div id="diseases-page" class="page"></div>
 
         <!-- FERTILIZER -->
-        <div id="fertilizer-page" class="page">
-            <div class="page-header"><h2>⚗️ Calculator Îngrășăminte</h2></div>
-            <div class="form">
-                <label>Tip cultură</label>
-                <select id="fert-crop"><option value="legume">Legume</option><option value="cereale">Cereale</option><option value="fructe">Fructe</option></select>
-                <label>Suprafață (m²)</label><input type="number" id="fert-area" value="100" min="1">
-                <label>Tip îngrășământ</label>
-                <select id="fert-type"><option>NPK 20-20-20</option><option>NPK 15-15-15</option><option>Azotat de amoniu</option><option>Superfosfat</option><option>Sulfat de potasiu</option><option>Îngrășământ organic</option></select>
-                <label>Fază de creștere</label>
-                <select id="fert-phase"><option value="1">Răsărire</option><option value="1.5">Vegetație</option><option value="2">Florire/Fructificare</option></select>
-                <button id="calc-fert">Calculează doza optimă</button>
-            </div>
-            <div id="fert-result" class="glass-panel"></div>
-        </div>
+        <div id="fertilizer-page" class="page"></div>
 
         <!-- JOURNAL -->
-        <div id="journal-page" class="page">
-            <div class="page-header"><h2>📝 Jurnal Recolte</h2></div>
-            <form id="journal-form" class="form">
-                <input type="text" id="j-crop" placeholder="Cultură" required list="crop-datalist">
-                <input type="date" id="j-date" required>
-                <input type="number" id="j-qty" placeholder="Cantitate (kg)" required min="0" step="0.1">
-                <input type="number" id="j-price" placeholder="Preț/kg (RON)" step="0.01">
-                <input type="text" id="j-notes" placeholder="Observații">
-                <datalist id="crop-datalist"><option value="Tomate"><option value="Cartofi"><option value="Grau"><option value="Mar"><option value="Busuioc"></datalist>
-                <button type="submit">Adaugă intrare</button>
-            </form>
-            <div class="toolbar">
-                <select id="j-sort"><option value="date-desc">Cele mai noi</option><option value="date-asc">Cele mai vechi</option></select>
-                <button id="j-export" class="btn-secondary">Export CSV</button>
-            </div>
-            <div id="journal-list" class="list"></div>
-        </div>
+        <div id="journal-page" class="page"></div>
 
         <!-- CHARTS -->
-        <div id="charts-page" class="page">
-            <div class="page-header"><h2>📊 Analitice Recolte</h2></div>
-            <div class="toolbar">
-                <select id="chart-year"><option>2026</option><option>2025</option><option>2024</option></select>
-                <select id="chart-crop"><option value="">Toate culturile</option></select>
-                <select id="chart-metric"><option value="qty">Cantitate (kg)</option><option value="value">Valoare (RON)</option></select>
-            </div>
-            <div class="glass-panel">
-                <canvas id="harvest-chart" width="900" height="380"></canvas>
-            </div>
-            <div class="cards" id="chart-stats"></div>
-        </div>
+        <div id="charts-page" class="page"></div>
 
         <!-- WEATHER -->
-        <div id="weather-page" class="page">
-            <div class="page-header"><h2>🌦️ Meteo Agricolă</h2></div>
-            <div class="toolbar">
-                <input type="text" id="city-input" placeholder="Introdu orașul..." value="București">
-                <button id="weather-search" class="btn-primary">Caută</button>
-            </div>
-            <div id="weather-current" class="glass-panel"></div>
-            <div id="weather-forecast" class="glass-panel"></div>
-            <div class="glass-panel">
-                <h3>🌡️ Alertă agricolă meteo</h3>
-                <div id="weather-alerts"></div>
-            </div>
-        </div>
+        <div id="weather-page" class="page"></div>
     </main>
 </div>
 
@@ -194,8 +80,10 @@
     <div class="modal-content">
         <h3>📤 Export date</h3>
         <p>Selectează formatul:</p>
-        <button class="btn-primary" id="export-csv">CSV (Excel)</button>
-        <button class="btn-primary" id="export-json">JSON</button>
+        <div class="modal-actions">
+            <button class="btn-primary" id="export-csv">CSV (Excel)</button>
+            <button class="btn-primary" id="export-json">JSON</button>
+        </div>
         <button class="btn-secondary" id="export-close">Închide</button>
     </div>
 </div>

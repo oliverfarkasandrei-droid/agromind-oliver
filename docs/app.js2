@@ -1,0 +1,256 @@
+// ===== CULTURI =====
+class CropsPage extends Page {
+    render(container) {
+        container.innerHTML = '';
+        const hdr = this.createEl('div', 'page-header');
+        hdr.appendChild(this.createEl('h2', null, '🌱 Culturi'));
+        container.appendChild(hdr);
+        container.appendChild(this.buildToolbar());
+        container.appendChild(this.buildList());
+        container.appendChild(this.buildAddForm());
+    }
+    buildToolbar() {
+        const t = this.createEl('div', 'toolbar');
+        const search = this.createEl('input'); search.type = 'text'; search.placeholder = '🔍 Caută culturi...';
+        search.addEventListener('input', Utils.debounce(() => this.updateList(), 250));
+        search.id = 'crop-search';
+        t.appendChild(search);
+        const sel = this.createEl('select'); sel.id = 'crop-filter';
+        sel.innerHTML = '<option value="">Toate categoriile</option><option>Legume</option><option>Cereale</option><option>Fructe</option><option>Plante aromatice</option>';
+        sel.addEventListener('change', () => this.updateList());
+        t.appendChild(sel);
+        const btn = this.createEl('button', 'btn-primary', '+ Adaugă');
+        btn.addEventListener('click', () => document.getElementById('add-form').style.display = 'flex');
+        t.appendChild(btn);
+        return t;
+    }
+    buildList() {
+        this.listEl = this.createEl('div', 'list'); this.listEl.id = 'crops-list';
+        this.updateList();
+        return this.listEl;
+    }
+    updateList() {
+        const f = (document.getElementById('crop-filter')?.value || '').trim();
+        const s = (document.getElementById('crop-search')?.value || '').toLowerCase().trim();
+        let items = [...this.store.data.crops];
+        if (f) items = items.filter(c => c.category === f);
+        if (s) items = items.filter(c => (c.name || '').toLowerCase().includes(s) || (c.season || '').toLowerCase().includes(s) || (c.soil || '').toLowerCase().includes(s));
+        this.listEl.innerHTML = '';
+        if (!items.length) {
+            this.listEl.appendChild(this.createEl('p', null, 'Nicio cultură găsită.'));
+            return;
+        }
+        for (const c of items) {
+            const item = this.createEl('div', 'list-item');
+            const left = this.createEl('div');
+            const h4 = this.createEl('h4', null, c.name);
+            h4.appendChild(this.makeTag(c.category));
+            const p1 = this.createEl('p', null, `Suprafață: ${c.area} ha | Fază: ${c.phase} | Randament: ${c.seedYield} kg/ha | Preț: ${c.pricePerKg} RON/kg`);
+            const p2 = this.createEl('p', null, `Valoare estimată: ${Utils.fmtd0(c.value)} RON | Plantat: ${Utils.fmtDate(c.plantedDate)}`);
+            left.append(h4, p1, p2);
+            const btn = this.createEl('button', 'btn-secondary', '🗑️');
+            btn.style.color = 'var(--danger)';
+            btn.addEventListener('click', () => { this.store.deleteCrop(c.id); Toast.show('Cultură ștearsă', 'success'); this.updateList(); });
+            item.append(left, btn);
+            this.listEl.appendChild(item);
+        }
+    }
+    makeTag(text) {
+        const t = this.createEl('span', 'tag', text);
+        t.style.marginLeft = '8px';
+        return t;
+    }
+    buildAddForm() {
+        const formWrap = this.createEl('div', 'glass-panel');
+        formWrap.style.display = 'none'; formWrap.id = 'add-form';
+        formWrap.innerHTML = '';
+        const h3 = this.createEl('h3', null, 'Adaugă cultură nouă');
+        formWrap.appendChild(h3);
+        const form = this.createEl('form', null); form.id = 'crop-form';
+        form.appendChild(this.field('text', 'c-name', 'Nume cultură', true, null, 'ex: Porumb dulce'));
+        form.appendChild(this.selField('c-cat', 'Categorie', ['Legume','Cereale','Fructe','Plante aromatice']));
+        form.appendChild(this.field('number', 'c-area', 'Suprafață (ha)', true, 0.01, '0.1'));
+        form.appendChild(this.selField('c-phase', 'Fază creștere', ['Răsărire','Vegetație','Florire','Coacere','Recoltare']));
+        form.appendChild(this.field('date', 'c-planted', 'Data plantare'));
+        form.appendChild(this.field('number', 'c-yield', 'Randament estimat (kg/ha)', true, 0, '5000'));
+        form.appendChild(this.field('number', 'c-price', 'Preț/kg (RON)', true, 0, '5'));
+        form.appendChild(this.field('text', 'c-soil', 'Tip sol', false, null, 'Lutos-argilos'));
+        form.appendChild(this.field('text', 'c-water', 'Necesități apă', false, null, 'Moderat'));
+        form.appendChild(this.field('text', 'c-temp', 'Temperatură optimă', false, null, '18-25°C'));
+        const btns = this.createEl('div');
+        btns.style.display = 'flex'; btns.style.gap = '10px'; btns.style.marginTop = '8px';
+        const sub = this.createEl('button', 'btn-primary', 'Salvează');
+        sub.type = 'submit';
+        const can = this.createEl('button', 'btn-secondary', 'Anulează');
+        can.addEventListener('click', () => document.getElementById('add-form').style.display = 'none');
+        btns.append(sub, can);
+        form.appendChild(btns);
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const [name, errN] = Validators.nonEmpty(form.querySelector('#c-name').value, 'Numele');
+            const [area, errA] = Validators.num(form.querySelector('#c-area').value, 0.001, 1000);
+            const [yield_, errY] = Validators.num(form.querySelector('#c-yield').value, 0, 100000);
+            const [price, errP] = Validators.num(form.querySelector('#c-price').value, 0, 10000);
+            if (errN) { Toast.show(errN, 'error'); return; }
+            if (errA) { Toast.show(errA, 'error'); return; }
+            if (errY) { Toast.show(errY, 'error'); return; }
+            if (errP) { Toast.show(errP, 'error'); return; }
+            const crop = {
+                id: 0,
+                name,
+                category: form.querySelector('#c-cat').value || 'Legume',
+                area,
+                phase: form.querySelector('#c-phase').value || 'Răsărire',
+                plantedDate: form.querySelector('#c-planted').value || '',
+                seedYield: yield_,
+                pricePerKg: price,
+                soil: form.querySelector('#c-soil').value || '',
+                water: form.querySelector('#c-water').value || '',
+                temp: form.querySelector('#c-temp').value || '',
+                notes: ''
+            };
+            crop.value = crop.area * crop.seedYield * crop.pricePerKg;
+            this.store.addCrop(crop);
+            Toast.show('Cultură adăugată cu succes!', 'success');
+            form.reset();
+            formWrap.style.display = 'none';
+            this.updateList();
+        });
+        formWrap.appendChild(form);
+        return formWrap;
+    }
+    field(type, id, label, req, min, placeholder) {
+        const wrap = this.createEl('div'); wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '4px';
+        const lab = this.createEl('label', null, label + (req ? ' *' : ''));
+        const inp = this.createEl('input');
+        inp.type = type; inp.id = id; inp.required = !!req;
+        if (placeholder) inp.placeholder = placeholder;
+        if (type === 'number') { inp.min = min; inp.step = '0.01'; }
+        wrap.append(lab, inp);
+        return wrap;
+    }
+    selField(id, label, opts) {
+        const wrap = this.createEl('div'); wrap.style.display = 'flex'; wrap.style.flexDirection = 'column'; wrap.style.gap = '4px';
+        const lab = this.createEl('label', null, label);
+        const sel = this.createEl('select'); sel.id = id;
+        for (const o of opts) { const op = this.createEl('option', null, o); op.value = o; sel.appendChild(op); }
+        wrap.append(lab, sel);
+        return wrap;
+    }
+}
+
+// ===== BOLI =====
+class DiseasesPage extends Page {
+    render(container) {
+        container.innerHTML = '';
+        const hdr = this.createEl('div', 'page-header');
+        hdr.appendChild(this.createEl('h2', null, '🦠 Boli și Dăunători'));
+        container.appendChild(hdr);
+
+        const srch = this.createEl('div', 'toolbar');
+        const input = this.createEl('input'); input.type = 'text'; input.placeholder = '🔍 Caută simptome sau nume...';
+        input.addEventListener('input', Utils.debounce(() => this.renderList(container), 200));
+        input.id = 'disease-search';
+        srch.appendChild(input);
+        const di = this.createEl('button', 'btn-primary', '🤖 Diagnostic AI');
+        di.addEventListener('click', () => {
+            const p = document.getElementById('diag-panel');
+            if (p) p.scrollIntoView({ behavior: 'smooth' });
+        });
+        srch.appendChild(di);
+        container.appendChild(srch);
+
+        this.renderList(container);
+
+        const panel = this.createEl('div', 'glass-panel');
+        panel.id = 'diag-panel';
+        panel.appendChild(this.createEl('h3', null, '🔬 Diagnostic rapid inteligent'));
+        panel.appendChild(this.createEl('p', null, 'Selectează simptomele observate pe plantă:'));
+        const cg = this.createEl('div', 'checkbox-grid');
+        const allSym = [...new Set(this.store.data.diseases.flatMap(d => d.symptoms))];
+        for (const s of allSym) {
+            const lb = document.createElement('label');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.value = s;
+            lb.appendChild(cb);
+            lb.appendChild(document.createTextNode(' ' + s));
+            cg.appendChild(lb);
+        }
+        panel.appendChild(cg);
+        const anBtn = this.createEl('button', 'btn-primary', '🔍 Analizează');
+        panel.appendChild(anBtn);
+        const res = this.createEl('div'); res.id = 'diagnosis-result';
+        panel.appendChild(res);
+        anBtn.addEventListener('click', () => this.runDiagnosis(cb => cg.querySelectorAll('input:checked'), res));
+        container.appendChild(panel);
+    }
+    runDiagnosis(cbFn, resEl) {
+        const cbs = cbFn();
+        resEl.innerHTML = '';
+        if (!cbs.length) {
+            const al = this.createEl('div', 'alert-warn', '⚠️ Selectează cel puțin un simptom');
+            resEl.appendChild(al); Toast.show('Selectează simptome', 'warn'); return;
+        }
+        Loading.show();
+        const checked = Array.from(cbs).map(x => x.value);
+        const m = this.store.data.diseases.map(d => {
+            const sc = d.symptoms.filter(s => checked.includes(s)).length;
+            return { ...d, sc, pct: Math.round((sc / d.symptoms.length) * 100) };
+        }).filter(d => d.sc > 0).sort((a, b) => b.sc - a.sc);
+        Loading.hide();
+        if (!m.length) {
+            const al = this.createEl('div', 'alert-warn', 'Nicio boală corespunzătoare găsită');
+            resEl.appendChild(al); return;
+        }
+        this.store.data.settings.diagnosesUsed = (this.store.data.settings.diagnosesUsed || 0) + 1;
+        this.store.save();
+        const box = this.createEl('div', 'result-box');
+        box.appendChild(this.createEl('h4', null, '🔬 Rezultat diagnostic'));
+        for (const x of m.slice(0, 3)) {
+            const p1 = this.createEl('p', null, '');
+            const strong = this.createEl('strong', null, x.name + ' — ' + x.pct + '% potrivire');
+            strong.style.color = x.pct >= 80 ? 'var(--danger)' : x.pct >= 50 ? 'var(--warning)' : 'var(--success)';
+            p1.appendChild(strong);
+            const p2 = this.createEl('p', null, 'Simptome potrivite: ' + x.symptoms.filter(s => checked.includes(s)).join(', '));
+            p2.style.fontSize = '13px'; p2.style.color = 'var(--text-muted)';
+            const p3 = this.createEl('p', null, 'Tratament: ' + x.treatment);
+            p3.style.fontSize = '13px';
+            box.append(p1, p2, p3);
+            if (x !== m.slice(0, 3).at(-1)) {
+                const hr = this.createEl('hr'); box.appendChild(hr);
+            }
+        }
+        const note = this.createEl('p', null, '⚠️ Diagnostic orientativ. Consultă un agronom pentru confirmare.');
+        note.style.fontSize = '12px'; note.style.color = 'var(--text-muted)';
+        box.appendChild(note);
+        resEl.appendChild(box);
+        Toast.show('Diagnostic generat cu succes', 'success');
+    }
+    renderList(container) {
+        let prev = container.querySelector('#diseases-list');
+        if (prev) prev.remove();
+        const s = (document.getElementById('disease-search')?.value || '').toLowerCase().trim();
+        let items = [...this.store.data.diseases];
+        if (s) items = items.filter(d => d.name.toLowerCase().includes(s) || d.symptoms.some(st => st.includes(s)));
+        const list = this.createEl('div', 'list'); list.id = 'diseases-list';
+        for (const d of items) {
+            const it = this.createEl('div', 'list-item');
+            const div = this.createEl('div');
+            const h = this.createEl('h4', null, d.name);
+            const sev = this.createEl('span', 'tag', d.severity);
+            sev.style.background = d.severity === 'Mare' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
+            sev.style.color = d.severity === 'Mare' ? '#dc2626' : '#d97706';
+            h.appendChild(sev);
+            div.appendChild(h);
+            const p1 = this.createEl('p', null, 'Simptome: ' + d.symptoms.join(', '));
+            const p2 = this.createEl('p', null, 'Tratament: ' + d.treatment);
+            p2.style.marginTop = '4px';
+            p2.style.fontWeight = 'bold';
+            div.append(p1, p2);
+            const afl = this.createEl('span', 'tag', d.affected.join(', '));
+            it.append(div, afl);
+            list.appendChild(it);
+        }
+        container.appendChild(list);
+    }
+}
