@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="description" content="AgroMind Premium v2.1 — Asistent digital pentru agricultură. Gestionare culturi, diagnostic boli, prognoză meteo, calculator îngrășăminte.">
+<meta name="description" content="AgroMind Premium v3.0 — Asistent digital pentru agricultură. Gestionare culturi, diagnostic boli, prognoză meteo, calculator îngrășăminte.">
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>AgroMind Premium v2.1</title>
+<title>AgroMind Premium v3.0</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 </head>
@@ -17,20 +17,21 @@
     <div class="overlay" id="overlay"></div>
 
     <!-- Sidebar -->
-    <nav class="sidebar" id="sidebar">
+    <nav class="sidebar" id="sidebar" role="navigation" aria-label="Meniu principal">
         <div class="brand">
-            <span class="brand-icon">🌾</span>
+            <span class="brand-icon" aria-hidden="true">🌾</span>
             <div class="brand-text">
                 <h1>AgroMind</h1>
-                <span class="badge-premium">⭐ PREMIUM</span>
+                <span class="badge-premium">⭐ PREMIUM v3.0</span>
             </div>
-            <button class="btn-icon sidebar-close" id="sidebar-close">✕</button>
+            <button class="btn-icon sidebar-close" id="sidebar-close" aria-label="Închide meniu">✕</button>
         </div>
-        <div class="nav-links" id="nav-links"></div>
+        <div class="nav-links" id="nav-links" role="list"></div>
         <div class="sidebar-footer">
-            <button id="theme-toggle" class="btn-icon" title="Dark/Light">🌓</button>
-            <button id="export-btn" class="btn-icon" title="Export CSV/JSON">📤</button>
-            <span class="connection-status" id="conn-status" title="Online">●</span>
+            <button id="theme-toggle" class="btn-icon" title="Schimbă tema (Lumină/Întuneric/Auto)" aria-label="Schimbă tema">🌓</button>
+            <button id="notif-toggle" class="btn-icon" title="Activează notificări agricole" aria-label="Notificări">🔔</button>
+            <button id="export-btn" class="btn-icon" title="Export/Import date" aria-label="Export date">📤</button>
+            <span class="connection-status" id="conn-status" title="Online" role="status" aria-live="polite">●</span>
         </div>
     </nav>
 
@@ -38,53 +39,54 @@
     <main class="content" id="main-content">
         <!-- Mobile Header -->
         <header class="mobile-header">
-            <button class="btn-icon hamburger" id="hamburger">☰</button>
+            <button class="btn-icon hamburger" id="hamburger" aria-label="Deschide meniu">☰</button>
             <h2 class="mobile-title">AgroMind</h2>
-            <span class="badge-premium mobile-badge">⭐</span>
+            <span class="badge-premium mobile-badge">⭐ v3.0</span>
         </header>
 
         <!-- Loading Overlay -->
-        <div class="loading-overlay" id="loading-overlay">
-            <div class="spinner"></div>
+        <div class="loading-overlay" id="loading-overlay" role="status" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
             <p>Se încarcă...</p>
         </div>
 
         <!-- Toast Container -->
-        <div class="toast-container" id="toast-container"></div>
+        <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
         <!-- DASHBOARD -->
-        <div id="dashboard-page" class="page active"></div>
+        <div id="dashboard-page" class="page active" role="tabpanel" aria-label="Panou Principal"></div>
 
         <!-- CROPS -->
-        <div id="crops-page" class="page"></div>
+        <div id="crops-page" class="page" role="tabpanel" aria-label="Culturi"></div>
 
         <!-- DISEASES -->
-        <div id="diseases-page" class="page"></div>
+        <div id="diseases-page" class="page" role="tabpanel" aria-label="Boli și Dăunători"></div>
 
         <!-- FERTILIZER -->
-        <div id="fertilizer-page" class="page"></div>
+        <div id="fertilizer-page" class="page" role="tabpanel" aria-label="Calculator Îngrășăminte"></div>
 
         <!-- JOURNAL -->
-        <div id="journal-page" class="page"></div>
+        <div id="journal-page" class="page" role="tabpanel" aria-label="Jurnal Recolte"></div>
 
         <!-- CHARTS -->
-        <div id="charts-page" class="page"></div>
+        <div id="charts-page" class="page" role="tabpanel" aria-label="Grafice Analitice"></div>
 
         <!-- WEATHER -->
-        <div id="weather-page" class="page"></div>
+        <div id="weather-page" class="page" role="tabpanel" aria-label="Meteo Agricolă"></div>
     </main>
 </div>
 
-<!-- Export Modal -->
-<div id="export-modal" class="modal">
+<!-- Export/Import Modal -->
+<div id="export-modal" class="modal" role="dialog" aria-modal="true" aria-label="Export și import date">
     <div class="modal-content">
-        <h3>📤 Export date</h3>
-        <p>Selectează formatul:</p>
+        <h3>📤 Export / Import date</h3>
+        <p>Exportă sau importă datele tale agricole:</p>
         <div class="modal-actions">
-            <button class="btn-primary" id="export-csv">CSV (Excel)</button>
-            <button class="btn-primary" id="export-json">JSON</button>
+            <button class="btn-primary" id="export-csv">📊 Export CSV Culturi</button>
+            <button class="btn-primary" id="export-json">💾 Backup JSON complet</button>
+            <button class="btn-secondary" id="import-full">📥 Import JSON complet</button>
         </div>
-        <button class="btn-secondary" id="export-close">Închide</button>
+        <button class="btn-secondary" id="export-close" style="margin-top:12px;width:100%">Închide</button>
     </div>
 </div>
 
