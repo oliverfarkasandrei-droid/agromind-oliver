@@ -751,6 +751,191 @@ class ChartsPage extends Page {
     mkCard(val,lb){const c=this.el('div',['card','glass']);c.appendChild(this.el('div','card-value',val));c.appendChild(this.el('div','card-label',lb));return c;}
 }
 
+// ===== PREDICTOR RECOLTĂ =====
+class HarvestPredictor {
+    constructor(store) { this.store = store; }
+    predict(crop) {
+        const area = crop.area || 0, seedYield = crop.seedYield || 0, phase = crop.phase || 'Răsărire';
+        const phaseMultiplier = {'Răsărire':0.6,'Vegetație':0.75,'Florire':1.0,'Coacere':1.3,'Recoltare':1.5};
+        const multiplier = phaseMultiplier[phase] || 1.0;
+        const predicted = Math.round(area * seedYield * multiplier);
+        const revenue = Math.round(predicted * (crop.pricePerKg || 0));
+        const now = new Date();
+        const planted = crop.plantedDate ? new Date(crop.plantedDate) : null;
+        let harvestDate = '—';
+        if (planted) {
+            const daysToHarvest = phase === 'Recoltare' ? 0 : phase === 'Coacere' ? 14 : phase === 'Florire' ? 45 : 75;
+            const hDate = new Date(planted.getTime() + daysToHarvest * 86400000);
+            harvestDate = hDate.toLocaleDateString('ro-RO');
+        }
+        return { predicted, revenue, harvestDate, multiplier };
+    }
+    render(container) {
+        container.innerHTML = '';
+        const hdr = document.createElement('div'); hdr.className = 'page-header';
+        const h2 = document.createElement('h2'); h2.textContent = '📈 Predictor Recoltă'; hdr.appendChild(h2);
+        const sub = document.createElement('p'); sub.className = 'subtitle'; sub.textContent = 'Estimează producția și veniturile pe baza datelor curente'; hdr.appendChild(sub);
+        container.appendChild(hdr);
+        const items = [...this.store.data.crops];
+        if (!items.length) {
+            const empty = document.createElement('p'); empty.className = 'empty-msg'; empty.textContent = 'Adaugă culturi pentru predicții.'; container.appendChild(empty);
+            return;
+        }
+        const grid = document.createElement('div'); grid.className = 'cards';
+        let totalRevenue = 0, totalYield = 0;
+        for (const c of items) {
+            const p = this.predict(c);
+            totalRevenue += p.revenue; totalYield += p.predicted;
+            const card = document.createElement('div'); card.className = 'card glass';
+            card.style.cssText = 'animation:scaleIn 0.4s ease-out';
+            card.innerHTML = `<div class="card-icon">🌱</div>
+                <div class="card-value">${p.predicted.toLocaleString('ro-RO')} kg</div>
+                <div class="card-label">${c.name} · ${c.area} ha · ${c.phase}</div>
+                <div class="card-trend">💰 ${p.revenue.toLocaleString('ro-RO')} RON estimat</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">📅 Recoltare: ${p.harvestDate} · ×${p.multiplier}</div>`;
+            grid.appendChild(card);
+            // Animate cards sequentially
+            card.style.animationDelay = `${items.indexOf(c) * 0.05}s`;
+        }
+        container.appendChild(grid);
+        const summary = document.createElement('div'); summary.className = 'glass-panel';
+        summary.innerHTML = `<h3>📊 Sumar fermă</h3>
+            <div class="cards" style="margin-top:12px">
+                <div class="card glass"><div class="card-value">${totalYield.toLocaleString('ro-RO')}</div><div class="card-label">Producție totală (kg)</div></div>
+                <div class="card glass"><div class="card-value">${totalRevenue.toLocaleString('ro-RO')}</div><div class="card-label">Venituri estimate (RON)</div></div>
+                <div class="card glass"><div class="card-value">${items.length}</div><div class="card-label">Culturi analizate</div></div>
+            </div>`;
+        container.appendChild(summary);
+    }
+}
+
+// ===== TASK-URI AGRICOLE =====
+class TasksPage extends Page {
+    render(c) {
+        c.innerHTML = '';
+        c.appendChild(this.header('✅ Task-uri Agricole'));
+        const addWrap = document.createElement('div'); addWrap.className = 'glass-panel';
+        const form = document.createElement('form'); form.className = 'form';
+        form.innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:4px"><label for="task-crop">Cultură *</label>
+                <input type="text" id="task-crop" required placeholder="Selectează sau scrie..." list="task-crop-list">
+                <datalist id="task-crop-list">${this.store.data.crops.map(c => `<option value="${c.name}">`).join('')}</datalist></div>
+            <div style="display:flex;flex-direction:column;gap:4px"><label for="task-text">Task *</label><input type="text" id="task-text" required placeholder="Ex: Irigare, Fertilizare..."></div>
+            <div style="display:flex;flex-direction:column;gap:4px"><label for="task-date">Dată scadentă</label><input type="date" id="task-date" value="${Utils.nowDate()}"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn-primary" type="submit">➕ Adaugă Task</button>
+                <button class="btn-secondary" type="button" id="clear-done">🗑️ Șterge finalizate</button>
+            </div>`;
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const cropVal = document.getElementById('task-crop').value.trim();
+            const textVal = document.getElementById('task-text').value.trim();
+            if (!cropVal || !textVal) { Toast.show('Completează toate câmpurile', 'error'); return; }
+            this.store.data.tasks = this.store.data.tasks || [];
+            this.store.data.tasks.push({
+                id: Date.now(), crop: cropVal, text: textVal,
+                date: document.getElementById('task-date').value, done: false, created: new Date().toISOString()
+            });
+            this.store.save();
+            Toast.show('Task adăugat!', 'success');
+            form.reset();
+            document.getElementById('task-date').value = Utils.nowDate();
+            this.renderList(c);
+        });
+        addWrap.appendChild(form);
+        c.appendChild(addWrap);
+        this.listEl = document.createElement('div'); this.listEl.id = 'tasks-list'; this.listEl.className = 'list';
+        c.appendChild(this.listEl);
+        document.getElementById('clear-done').addEventListener('click', () => {
+            this.store.data.tasks = (this.store.data.tasks || []).filter(t => !t.done);
+            this.store.save();
+            Toast.show('Task-uri finalizate șterse', 'success');
+            this.renderList(c);
+        });
+        this.renderList(c);
+    }
+    header(title) { const hdr = this.el('div', 'page-header'); hdr.appendChild(this.el('h2', null, title)); return hdr; }
+    renderList(c) {
+        this.listEl.innerHTML = '';
+        this.store.data.tasks = this.store.data.tasks || [];
+        const items = [...this.store.data.tasks].sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1) || new Date(b.created) - new Date(a.created));
+        if (!items.length) { this.listEl.appendChild(this.el('p', 'empty-msg', 'Niciun task. Adaugă task-uri agricole!')); return; }
+        for (const t of items) {
+            const it = this.el('div', 'list-item');
+            it.style.opacity = t.done ? '0.5' : '1';
+            it.style.textDecoration = t.done ? 'line-through' : 'none';
+            const div = this.el('div');
+            div.innerHTML = `<h4>${Utils.escapeHTML(t.crop)}: ${Utils.escapeHTML(t.text)}</h4>
+                <p>📅 ${Utils.fmtDate(t.date)} · ${t.done ? '✅ Finalizat' : '⏳ În așteptare'}</p>`;
+            const actions = this.el('div'); actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0';
+            const doneBtn = this.el('button', 'btn-secondary', t.done ? '↩️' : '✅');
+            doneBtn.addEventListener('click', () => {
+                t.done = !t.done;
+                this.store.save();
+                this.renderList(c);
+            });
+            const delBtn = this.el('button', 'btn-secondary', '🗑️');
+            delBtn.style.color = 'var(--danger)';
+            delBtn.addEventListener('click', () => {
+                this.store.data.tasks = this.store.data.tasks.filter(x => x.id !== t.id);
+                this.store.save();
+                this.renderList(c);
+                Toast.show('Task șters', 'info');
+            });
+            actions.append(doneBtn, delBtn);
+            it.append(div, actions);
+            this.listEl.appendChild(it);
+        }
+    }
+}
+
+// ===== EXPORT RAPORT COMPLET =====
+class ReportExporter {
+    constructor(store) { this.store = store; }
+    generateHTML() {
+        const d = this.store.data;
+        const now = new Date().toLocaleDateString('ro-RO');
+        const totalV = d.crops.reduce((s, c) => s + ((c.area||0)*(c.seedYield||0)*(c.pricePerKg||0)), 0);
+        const predictor = new HarvestPredictor(this.store);
+        const preds = d.crops.map(c => predictor.predict(c));
+        const totalPred = preds.reduce((s, p) => s + p.predicted, 0);
+        const totalRev = preds.reduce((s, p) => s + p.revenue, 0);
+        const cropsRows = d.crops.map(c => `<tr><td>${c.name}</td><td>${c.category}</td><td>${c.area} ha</td><td>${c.phase}</td><td>${c.seedYield} kg/ha</td><td>${c.pricePerKg} RON</td><td>${((c.area||0)*(c.seedYield||0)*(c.pricePerKg||0)).toLocaleString('ro-RO')} RON</td></tr>`).join('');
+        const tasksCount = (d.tasks || []).length;
+        const tasksDone = (d.tasks || []).filter(t => t.done).length;
+        const tasksRows = (d.tasks || []).sort((a, b) => new Date(b.created) - new Date(a.created)).slice(0, 10).map(t =>
+            `<tr><td>${t.crop}</td><td>${t.text}</td><td>${Utils.fmtDate(t.date)}</td><td>${t.done ? '✅ Da' : '⏳ Nu'}</td></tr>`).join('');
+        return `<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><title>Raport AgroMind — ${now}</title>
+            <style>body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:20px;color:#1e293b;background:#f8fafc}
+            h1{color:#0f172a;border-bottom:3px solid #3b82f6;padding-bottom:8px}h2{color:#334155;margin-top:28px}
+            .summary{display:flex;gap:16px;flex-wrap:wrap}.card{background:white;border-radius:12px;padding:20px;flex:1;min-width:180px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+            .card .val{font-size:28px;font-weight:700;color:#3b82f6}.card .lbl{font-size:13px;color:#64748b}
+            table{width:100%;border-collapse:collapse;margin:12px 0;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+            th{background:#3b82f6;color:white;padding:10px 12px;text-align:left;font-size:13px}td{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-size:14px}
+            tr:last-child td{border-bottom:none}.footer{margin-top:32px;color:#94a3b8;font-size:12px;text-align:center}</style></head>
+            <body><h1>🌾 Raport AgroMind Premium v3.1</h1><p>Generat: ${now} · Autor: Oliver Farkas Andrei</p>
+            <h2>📊 Sumar</h2><div class="summary">
+                <div class="card"><div class="val">${d.crops.length}</div><div class="lbl">Culturi active</div></div>
+                <div class="card"><div class="val">${d.crops.reduce((s,c)=>s+(c.area||0),0).toFixed(1)} ha</div><div class="lbl">Suprafață totală</div></div>
+                <div class="card"><div class="val">${totalV.toLocaleString('ro-RO')} RON</div><div class="lbl">Valoare estimată</div></div>
+                <div class="card"><div class="val">${totalPred.toLocaleString('ro-RO')} kg</div><div class="lbl">Producție estimată</div></div>
+                <div class="card"><div class="val">${totalRev.toLocaleString('ro-RO')} RON</div><div class="lbl">Venituri estimate</div></div>
+                <div class="card"><div class="val">${tasksDone}/${tasksCount}</div><div class="lbl">Task-uri finalizate</div></div>
+            </div>
+            <h2>🌱 Culturi</h2><table><thead><tr><th>Nume</th><th>Categorie</th><th>Suprafață</th><th>Fază</th><th>Randament</th><th>Preț/kg</th><th>Valoare</th></tr></thead><tbody>${cropsRows}</tbody></table>
+            <h2>✅ Task-uri</h2><table><thead><tr><th>Cultură</th><th>Task</th><th>Dată</th><th>Finalizat</th></tr></thead><tbody>${tasksRows || '<tr><td colspan="4">Niciun task</td></tr>'}</tbody></table>
+            <div class="footer">AgroMind Premium v3.1 · Oliver Farkas Andrei · ${now}</div></body></html>`;
+    }
+    export() {
+        const html = this.generateHTML();
+        const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `raport-agromind-${new Date().toISOString().slice(0,10)}.html`; a.click();
+        URL.revokeObjectURL(a.href);
+        Toast.show('Raport generat!', 'success');
+    }
+}
+
 // ===== WEATHER =====
 class WeatherPage extends Page {
     render(c) {
@@ -925,7 +1110,8 @@ class Router {
         this.store = store;
         this.pages = {
             dashboard: new DashboardPage(store), crops: new CropsPage(store), diseases: new DiseasesPage(store),
-            fertilizer: new FertilizerPage(store), journal: new JournalPage(store), charts: new ChartsPage(store), weather: new WeatherPage(store),
+            fertilizer: new FertilizerPage(store), journal: new JournalPage(store), charts: new ChartsPage(store),
+            tasks: new TasksPage(store), weather: new WeatherPage(store),
         };
         this.navItems = [
             {id:'dashboard',icon:'◈',label:'Panou Principal'},
@@ -934,6 +1120,7 @@ class Router {
             {id:'fertilizer',icon:'⚗️',label:'Îngrășăminte'},
             {id:'journal',icon:'📝',label:'Jurnal'},
             {id:'charts',icon:'📊',label:'Grafice'},
+            {id:'tasks',icon:'✅',label:'Task-uri'},
             {id:'weather',icon:'🌦️',label:'Meteo'},
         ];
         this.buildNav();
