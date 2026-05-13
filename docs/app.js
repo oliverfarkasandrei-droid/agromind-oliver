@@ -822,7 +822,7 @@ class ChartsPage extends Page {
         const tb = this.el('div', 'toolbar');
         const yr = this.el('select'); for (const y of [2026,2025,2024]) { const o = document.createElement('option'); o.value = y; o.textContent = y; yr.appendChild(o); } yr.value = '2026'; yr.id = 'chart-year';
         yr.addEventListener('change', () => this.drawCanvas()); tb.appendChild(yr);
-        const cr = this.el('select'); const opts = [...new Set(this.store.data.journals.map(j => j.crop))];
+        const cr = this.el('select'); const opts = [...new Set(this.store.data.crops.map(j => j.name))];
         cr.innerHTML = '<option value="">Toate culturile</option>' + opts.map(c => `<option value="${c}">${c}</option>`).join(''); cr.id = 'chart-crop';
         cr.addEventListener('change', () => this.drawCanvas()); tb.appendChild(cr);
         const met = this.el('select'); met.innerHTML = '<option value="qty">Cantitate (kg)</option><option value="value">Valoare (RON)</option>'; met.id = 'chart-metric';
@@ -861,7 +861,7 @@ class ChartsPage extends Page {
 
         if (!items.length) {
             // Fallback: show crop-based chart when no journal entries
-            this.drawFallbackChart(ctx, w, cropF);
+            this.drawFallbackChart(ctx, w, cropF, metric);
             return;
         }
 
@@ -889,16 +889,19 @@ class ChartsPage extends Page {
         this.statsEl.appendChild(this.mkCard(months[bestMonth-1]||'-','Luna maxim'));
     }
 
-    drawFallbackChart(ctx, w, cropF) {
-        // Bar chart: value of each crop
+    drawFallbackChart(ctx, w, cropF, metric) {
+        // Bar chart: value or qty per crop depending on metric
         let crops = [...this.store.data.crops];
         if (cropF) crops = crops.filter(c => c.name === cropF);
-        crops.sort((a, b) => (b.value || 0) - (a.value || 0));
+
+        const isValue = metric === 'value';
+        const getMetric = c => isValue ? (c.value || 0) : Math.round((c.area || 0) * (c.seedYield || 0));
+        crops.sort((a, b) => getMetric(b) - getMetric(a));
 
         // Draw title + hint
         ctx.fillStyle = Utils.getCSSVar('--text');
         ctx.font = 'bold 14px sans-serif';
-        ctx.fillText('📊 Valoare estimată per cultură', 50, 25);
+        ctx.fillText(isValue ? '📊 Valoare estimată per cultură' : '📊 Producție estimată per cultură', 50, 25);
 
         ctx.fillStyle = Utils.getCSSVar('--text-muted');
         ctx.font = '12px sans-serif';
@@ -916,7 +919,7 @@ class ChartsPage extends Page {
 
         // Bar chart
         const pad = 50, ch = 240, topY = 100;
-        const maxVal = Math.max(...crops.map(c => c.value || 0), 1);
+        const maxVal = Math.max(...crops.map(c => getMetric(c)), 1);
         const bw = Math.min(50, Math.max(20, (w - pad * 2) / crops.length - 14));
         const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6'];
         const baseline = topY + ch;
@@ -931,7 +934,7 @@ class ChartsPage extends Page {
 
         let totalV = 0;
         crops.forEach((c, i) => {
-            const v = c.value || 0;
+            const v = getMetric(c);
             totalV += v;
             const h = (v / maxVal) * ch;
             const x = pad + i * (bw + 14);
@@ -943,7 +946,7 @@ class ChartsPage extends Page {
             // Value on top
             ctx.fillStyle = Utils.getCSSVar('--text');
             ctx.font = 'bold 11px sans-serif';
-            ctx.fillText(Utils.fmtd0(v) + ' RON', x + 2, y - 6);
+            ctx.fillText(Utils.fmtd0(v) + (isValue ? ' RON' : ' kg'), x + 2, y - 6);
 
             // Crop name below
             ctx.fillStyle = Utils.getCSSVar('--text-muted');
@@ -957,9 +960,9 @@ class ChartsPage extends Page {
         });
 
         this.statsEl.innerHTML = '';
-        this.statsEl.appendChild(this.mkCard(Utils.fmtd0(totalV), 'Valoare totală (RON)'));
+        this.statsEl.appendChild(this.mkCard(Utils.fmtd0(totalV), isValue ? 'Valoare totală (RON)' : 'Producție totală (kg)'));
         this.statsEl.appendChild(this.mkCard(String(crops.length), 'Culturi'));
-        this.statsEl.appendChild(this.mkCard(Utils.fmtd(totalV / Math.max(crops.length, 1)), 'Medie/cultură'));
+        this.statsEl.appendChild(this.mkCard(Utils.fmtd(totalV / Math.max(crops.length, 1)), isValue ? 'Medie/cultură (RON)' : 'Medie/cultură (kg)'));
     }
     mkCard(val,lb){const c=this.el('div',['card','glass']);c.appendChild(this.el('div','card-value',val));c.appendChild(this.el('div','card-label',lb));return c;}
 }
