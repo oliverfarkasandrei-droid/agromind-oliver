@@ -858,6 +858,13 @@ class ChartsPage extends Page {
         const cropF = document.getElementById('chart-crop')?.value || '', metric = document.getElementById('chart-metric')?.value || 'qty';
         let items = this.store.data.journals.filter(j => j.date && j.date.startsWith(year));
         if (cropF) items = items.filter(j => j.crop === cropF);
+
+        if (!items.length) {
+            // Fallback: show crop-based chart when no journal entries
+            this.drawFallbackChart(ctx, w, cropF);
+            return;
+        }
+
         const monthly = {}; for(let i=1;i<=12;i++) monthly[i]=0;
         items.forEach(j => { const m = parseInt(j.date.split('-')[1]); monthly[m] += metric==='value'&&j.price ? j.qty*j.price : j.qty; });
         const values = Object.values(monthly), max = Math.max(...values, 1);
@@ -880,6 +887,79 @@ class ChartsPage extends Page {
         this.statsEl.appendChild(this.mkCard(Utils.fmtd0(total),`Total ${metric==='value'?'RON':'kg'}`));
         this.statsEl.appendChild(this.mkCard(Utils.fmtd(avg),'Medie lunară'));
         this.statsEl.appendChild(this.mkCard(months[bestMonth-1]||'-','Luna maxim'));
+    }
+
+    drawFallbackChart(ctx, w, cropF) {
+        // Bar chart: value of each crop
+        let crops = [...this.store.data.crops];
+        if (cropF) crops = crops.filter(c => c.name === cropF);
+        crops.sort((a, b) => (b.value || 0) - (a.value || 0));
+
+        // Draw title + hint
+        ctx.fillStyle = Utils.getCSSVar('--text');
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText('📊 Valoare estimată per cultură', 50, 25);
+
+        ctx.fillStyle = Utils.getCSSVar('--text-muted');
+        ctx.font = '12px sans-serif';
+        ctx.fillText('💡 Adaugă recolte în Jurnal pentru grafice lunare detaliate', 50, 45);
+
+        if (!crops.length) {
+            ctx.fillStyle = Utils.getCSSVar('--text-muted');
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nicio cultură disponibilă', w / 2, 200);
+            ctx.textAlign = 'start';
+            this.statsEl.innerHTML = '';
+            return;
+        }
+
+        // Bar chart
+        const pad = 50, ch = 240, topY = 100;
+        const maxVal = Math.max(...crops.map(c => c.value || 0), 1);
+        const bw = Math.min(50, Math.max(20, (w - pad * 2) / crops.length - 14));
+        const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#14b8a6'];
+        const baseline = topY + ch;
+
+        // Axis line
+        ctx.strokeStyle = Utils.getCSSVar('--border-solid');
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad, baseline);
+        ctx.lineTo(pad + crops.length * (bw + 14), baseline);
+        ctx.stroke();
+
+        let totalV = 0;
+        crops.forEach((c, i) => {
+            const v = c.value || 0;
+            totalV += v;
+            const h = (v / maxVal) * ch;
+            const x = pad + i * (bw + 14);
+            const y = baseline - h;
+
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fillRect(x, y, bw, h);
+
+            // Value on top
+            ctx.fillStyle = Utils.getCSSVar('--text');
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(Utils.fmtd0(v) + ' RON', x + 2, y - 6);
+
+            // Crop name below
+            ctx.fillStyle = Utils.getCSSVar('--text-muted');
+            ctx.font = '10px sans-serif';
+            ctx.save();
+            ctx.translate(x + bw / 2, baseline + 18);
+            ctx.rotate(-0.5);
+            ctx.textAlign = 'right';
+            ctx.fillText(c.name.length > 10 ? c.name.substring(0, 10) + '…' : c.name, 0, 0);
+            ctx.restore();
+        });
+
+        this.statsEl.innerHTML = '';
+        this.statsEl.appendChild(this.mkCard(Utils.fmtd0(totalV), 'Valoare totală (RON)'));
+        this.statsEl.appendChild(this.mkCard(String(crops.length), 'Culturi'));
+        this.statsEl.appendChild(this.mkCard(Utils.fmtd(totalV / Math.max(crops.length, 1)), 'Medie/cultură'));
     }
     mkCard(val,lb){const c=this.el('div',['card','glass']);c.appendChild(this.el('div','card-value',val));c.appendChild(this.el('div','card-label',lb));return c;}
 }
