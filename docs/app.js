@@ -136,7 +136,20 @@ class DashboardPage extends Page {
         chartCanvas.setAttribute('role', 'img'); chartCanvas.setAttribute('aria-label', 'Grafic distribuție culturi pe categorii');
         chartPanel.appendChild(chartCanvas);
         c.appendChild(chartPanel);
-        setTimeout(() => this.drawDashboardChart(), 50);
+        setTimeout(() => {
+            // Retry until parent has width (animation may still be running)
+            const tryDraw = (attempts) => {
+                const canvas = document.getElementById('dashboard-chart');
+                if (!canvas) return;
+                const parent = canvas.parentElement;
+                if (parent.clientWidth > 0 || attempts >= 10) {
+                    this.drawDashboardChart();
+                } else {
+                    setTimeout(() => tryDraw(attempts + 1), 100);
+                }
+            };
+            tryDraw(0);
+        }, 50);
 
         const sPanel = this.el('div', 'glass-panel');
         sPanel.appendChild(this.el('h3', null, '🌾 Recomandări sezon: ' + this.currentMonth()));
@@ -266,7 +279,7 @@ class CropsPage extends Page {
         const expBtn = this.el('button', 'btn-secondary', '📤 Export');
         expBtn.addEventListener('click', () => this.exportCrops()); t.appendChild(expBtn);
         const btn = this.el('button', 'btn-primary', '+ Adaugă'); btn.setAttribute('aria-label', 'Adaugă cultură nouă');
-        btn.addEventListener('click', () => { const f = document.getElementById('add-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }); t.appendChild(btn);
+        btn.addEventListener('click', () => { const f = document.getElementById('add-form'); const visible = f.style.display !== 'none'; f.style.display = visible ? 'none' : 'block'; if (!visible) f.scrollIntoView({behavior:'smooth',block:'center'}); }); t.appendChild(btn);
         return t;
     }
     updateList() {
@@ -616,8 +629,9 @@ class JournalPage extends Page {
         form.appendChild(this.inp('j-qty', 'Cantitate (kg)', 'number', true, '0.01'));
         form.appendChild(this.inp('j-price', 'Preț/kg (RON)', 'number', false, '0.01'));
         form.appendChild(this.inp('j-notes', 'Observații', 'text', false));
-        const btns = this.el('div'); btns.style.cssText = 'display:flex;gap:8px'; btns.appendChild(this.el('button', 'btn-primary', 'Adaugă intrare'));
-        formWrap.appendChild(form); formWrap.appendChild(btns);
+        const btnSubmit = this.el('button', 'btn-primary', 'Adaugă intrare'); btnSubmit.type = 'submit';
+        form.appendChild(btnSubmit);
+        formWrap.appendChild(form);
         form.addEventListener('submit', e => {
             e.preventDefault();
             const [crop, eC] = Validators.nonEmpty(form.querySelector('#j-crop').value, 'Cultura');
