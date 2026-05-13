@@ -1,4 +1,4 @@
-// ✅ AgroMind Premium v3.0
+// ✅ AgroMind Premium v3.2
 // Autor: Oliver Farkas Andrei | InfoEducație 2026
 // Îmbunătățiri Hermes Agent: editare culturi, import CSV/JSON, dashboard grafice,
 //   geolocație, sugestii automate, animații, notificări, dark mode auto,
@@ -45,12 +45,12 @@ class Store {
     defaults() {
         return {
             crops: [
-                {id:1,name:'Tomate',category:'Legume',area:0.5,phase:'Florire',plantedDate:'2026-03-15',seedYield:30000,pricePerKg:8.5,soil:'Lutos-argilos',water:'Moderat',temp:'18-25°C',notes:''},
-                {id:2,name:'Cartofi',category:'Legume',area:1.2,phase:'Vegetație',plantedDate:'2026-04-01',seedYield:20000,pricePerKg:3,soil:'Lutos-nisipos',water:'Moderat',temp:'15-20°C',notes:''},
-                {id:3,name:'Grâu',category:'Cereale',area:5,phase:'Răsărire',plantedDate:'2025-10-20',seedYield:4500,pricePerKg:1.8,soil:'Chernozem',water:'Redus',temp:'10-20°C',notes:''},
-                {id:4,name:'Măr',category:'Fructe',area:0.8,phase:'Vegetație',plantedDate:'2020-03-10',seedYield:15000,pricePerKg:5,soil:'Lutos',water:'Moderat',temp:'12-22°C',notes:''},
-                {id:5,name:'Busuioc',category:'Plante aromatice',area:0.1,phase:'Răsărire',plantedDate:'2026-05-01',seedYield:8000,pricePerKg:25,soil:'Bine drenat',water:'Redus',temp:'20-30°C',notes:''},
-                {id:6,name:'Porumb',category:'Cereale',area:3,phase:'Răsărire',plantedDate:'2026-04-15',seedYield:8000,pricePerKg:2.5,soil:'Lutos',water:'Moderat',temp:'18-27°C',notes:''},
+                {id:1,name:'Tomate',category:'Legume',family:'Solanacee',area:0.5,phase:'Florire',plantedDate:'2026-03-15',seedYield:30000,pricePerKg:8.5,soil:'Lutos-argilos',water:'Moderat',temp:'18-25°C',notes:''},
+                {id:2,name:'Cartofi',category:'Legume',family:'Solanacee',area:1.2,phase:'Vegetație',plantedDate:'2026-04-01',seedYield:20000,pricePerKg:3,soil:'Lutos-nisipos',water:'Moderat',temp:'15-20°C',notes:''},
+                {id:3,name:'Grâu',category:'Cereale',family:'Poaceae',area:5,phase:'Răsărire',plantedDate:'2025-10-20',seedYield:4500,pricePerKg:1.8,soil:'Chernozem',water:'Redus',temp:'10-20°C',notes:''},
+                {id:4,name:'Măr',category:'Fructe',family:'Rosaceae',area:0.8,phase:'Vegetație',plantedDate:'2020-03-10',seedYield:15000,pricePerKg:5,soil:'Lutos',water:'Moderat',temp:'12-22°C',notes:''},
+                {id:5,name:'Busuioc',category:'Plante aromatice',family:'Lamiaceae',area:0.1,phase:'Răsărire',plantedDate:'2026-05-01',seedYield:8000,pricePerKg:25,soil:'Bine drenat',water:'Redus',temp:'20-30°C',notes:''},
+                {id:6,name:'Porumb',category:'Cereale',family:'Poaceae',area:3,phase:'Răsărire',plantedDate:'2026-04-15',seedYield:8000,pricePerKg:2.5,soil:'Lutos',water:'Moderat',temp:'18-27°C',notes:''},
             ],
             diseases: [
                 {id:1,name:'Mana tomatei',symptoms:['pete maro pe frunze','mucegai gri pe fața inferioară','îngălbenire'],treatment:'Fungicide pe bază de cupru. Eliminare frunze afectate.',affected:['Tomate','Cartofi'],severity:'Mare'},
@@ -171,10 +171,117 @@ class DashboardPage extends Page {
         checkBtn.addEventListener('click', () => { if (window.router) window.router.goto('diseases'); });
         const fertBtn = this.el('button', 'btn-secondary', '⚗️ Calculează NPK');
         fertBtn.addEventListener('click', () => { if (window.router) window.router.goto('fertilizer'); });
-        fastBtns.append(addCropBtn, checkBtn, fertBtn);
+        const reportBtn = this.el('button', 'btn-secondary', '🖨️ Raport'); 
+        reportBtn.addEventListener('click', () => this.printReport());
+        fastBtns.append(addCropBtn, checkBtn, fertBtn, reportBtn);
         fastPanel.appendChild(fastBtns);
         c.appendChild(fastPanel);
+
+        // Rotația culturilor
+        const rotPanel = this.el('div', 'glass-panel');
+        rotPanel.appendChild(this.el('h3', null, '🔄 Rotația culturilor'));
+        this.buildRotationTable(rotPanel);
+        c.appendChild(rotPanel);
     }
+
+    buildRotationTable(panel) {
+        // Group crops by family
+        const families = {};
+        for (const crop of this.store.data.crops) {
+            const fam = crop.family || 'Necunoscută';
+            if (!families[fam]) families[fam] = [];
+            families[fam].push(crop);
+        }
+
+        // Rotation rules: same family shouldn't follow itself
+        const warnings = [];
+        const fams = Object.keys(families);
+        for (const fam of fams) {
+            if (families[fam].length > 1) {
+                warnings.push(`⚠️ ${fam}: ${families[fam].map(c => c.name).join(', ')} — aceeași familie botanică, risc de boli comune`);
+            }
+        }
+
+        // Ideal rotation sequences
+        const rotationGuide = [
+            ['Leguminoase', 'Cereale', 'Legume', 'Rădăcinoase'],
+            ['Cereale', 'Leguminoase', 'Legume', 'Plante tehnice'],
+            ['Legume', 'Cereale', 'Leguminoase', 'Rădăcinoase'],
+        ];
+
+        if (!warnings.length) {
+            const ok = this.el('p', 'empty-msg');
+            ok.textContent = '✅ Nu există conflict de rotație între culturile actuale.';
+            ok.style.padding = '12px 0';
+            panel.appendChild(ok);
+        } else {
+            for (const w of warnings) {
+                const al = this.el('div', 'alert-warn', w);
+                al.style.marginBottom = '8px';
+                panel.appendChild(al);
+            }
+        }
+
+        // Recomandare secvență ideală
+        const rec = this.el('div');
+        rec.style.cssText = 'margin-top:12px;font-size:13px;color:var(--text-muted)';
+        rec.innerHTML = '<strong>📋 Secvență ideală recomandată:</strong> ' + rotationGuide[0].join(' → ') +
+            '<br><small>Plantele din aceeași familie nu ar trebui cultivate pe același teren 2 ani consecutivi.</small>';
+        panel.appendChild(rec);
+    }
+
+    printReport() {
+        const d = this.store.data;
+        const now = new Date().toLocaleDateString('ro-RO');
+        const totalA = this.store.getTotalArea();
+        const totalV = this.store.getTotalValue();
+        const score = this.calcScore();
+
+        const cropsRows = d.crops.map(c => 
+            `<tr><td>${c.name}</td><td>${c.category}</td><td>${c.area} ha</td><td>${c.phase}</td><td>${(c.value||0).toLocaleString('ro-RO')} RON</td></tr>`
+        ).join('');
+
+        const printWin = window.open('', '_blank', 'width=900,height=700');
+        printWin.document.write(`
+            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><title>Raport AgroMind — ${now}</title>
+            <style>
+                body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1e293b;background:#fff}
+                h1{border-bottom:3px solid #3b82f6;padding-bottom:8px;color:#0f172a}
+                h2{color:#334155;margin-top:24px;font-size:18px}
+                .summary{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}
+                .stat{background:#f1f5f9;border-radius:10px;padding:16px 20px;flex:1;min-width:140px}
+                .stat .val{font-size:28px;font-weight:700;color:#3b82f6}
+                .stat .lbl{font-size:12px;color:#64748b}
+                table{width:100%;border-collapse:collapse;margin:12px 0}
+                th{background:#3b82f6;color:#fff;padding:10px 12px;text-align:left;font-size:13px}
+                td{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-size:14px}
+                .footer{margin-top:32px;color:#94a3b8;font-size:11px;text-align:center;border-top:1px solid #e2e8f0;padding-top:12px}
+                @media print{body{margin:15mm}}
+            </style></head>
+            <body>
+                <h1>🌾 Raport AgroMind Premium v3.2</h1>
+                <p>Generat: ${now} · Autor: Oliver Farkas Andrei</p>
+                <div class="summary">
+                    <div class="stat"><div class="val">${d.crops.length}</div><div class="lbl">Culturi active</div></div>
+                    <div class="stat"><div class="val">${totalA.toFixed(1)} ha</div><div class="lbl">Suprafață totală</div></div>
+                    <div class="stat"><div class="val">${totalV.toLocaleString('ro-RO')} RON</div><div class="lbl">Valoare estimată</div></div>
+                    <div class="stat"><div class="val">${score}/100</div><div class="lbl">Sănătate fermă</div></div>
+                </div>
+                <h2>🌱 Culturi</h2>
+                <table><thead><tr><th>Nume</th><th>Categorie</th><th>Suprafață</th><th>Fază</th><th>Valoare</th></tr></thead><tbody>${cropsRows}</tbody></table>
+                <h2>📝 Jurnal recolte (${d.journals.length} intrări)</h2>
+                <table><thead><tr><th>Data</th><th>Cultură</th><th>Cantitate</th><th>Preț/kg</th><th>Valoare</th></tr></thead><tbody>
+                ${d.journals.slice(0,20).map(j => `<tr><td>${Utils.fmtDate(j.date)}</td><td>${j.crop}</td><td>${j.qty} kg</td><td>${j.price||'—'} RON</td><td>${j.price ? (j.qty*j.price).toFixed(2)+' RON' : '—'}</td></tr>`).join('')}
+                </tbody></table>
+                <div class="footer">AgroMind Premium v3.2 — Raport generat pe ${now}</div>
+            </body></html>
+        `);
+        printWin.document.close();
+        printWin.focus();
+        // Auto-print after a short delay to let rendering finish
+        setTimeout(() => { try { printWin.print(); } catch(e) {} }, 800);
+    }
+
     drawDashboardChart() {
         const canvas = document.getElementById('dashboard-chart'); if (!canvas) return;
         const parent = canvas.parentElement;
@@ -1183,6 +1290,34 @@ class Router {
         document.getElementById('overlay').classList.remove('open');
     }
     init() { this.goto('dashboard'); }
+
+    initScrollTop() {
+        const btn = document.getElementById('scroll-top');
+        if (!btn) return;
+        const main = document.getElementById('main-content');
+        const toggle = () => {
+            if (main && main.scrollTop > 400) btn.classList.add('visible');
+            else btn.classList.remove('visible');
+        };
+        main?.addEventListener('scroll', toggle, {passive:true});
+        btn.addEventListener('click', () => main?.scrollTo({top:0,behavior:'smooth'}));
+    }
+
+    initRipples() {
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-primary,.btn-secondary,.pg-btn');
+            if (!btn) return;
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple-effect';
+            const rect = btn.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+            btn.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        });
+    }
 }
 
 // ===== APP =====
@@ -1197,6 +1332,12 @@ class App {
         this.exportManager = new ExportManager(this.store);
         window.router = this.router;
         this.router.init();
+        this.router.initScrollTop();
+        this.router.initRipples();
+        // Register service worker for PWA + offline caching
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
         // Request notifications after user interaction
         document.addEventListener('click', () => { if (this.store.data.settings.notificationsEnabled) Notify.request(); }, {once: true});
     }

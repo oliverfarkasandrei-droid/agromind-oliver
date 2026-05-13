@@ -281,6 +281,53 @@ body {
 .pg-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
 .pg-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
+/* ===== SCROLL TO TOP ===== */
+.scroll-top {
+    position:fixed; bottom:24px; right:24px; width:48px; height:48px;
+    border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+    color:white; border:none; font-size:22px; cursor:pointer;
+    box-shadow:var(--shadow-lg); z-index:200;
+    opacity:0; visibility:hidden; transform:translateY(20px);
+    transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+    display:flex; align-items:center; justify-content:center;
+}
+.scroll-top.visible { opacity:1; visibility:visible; transform:translateY(0); }
+.scroll-top:hover { transform:translateY(-4px) scale(1.1); box-shadow:0 8px 24px rgba(59,130,246,0.4); }
+.scroll-top:active { transform:translateY(0) scale(0.95); }
+
+/* ===== SKELETON LOADING ===== */
+.skeleton {
+    background:linear-gradient(90deg,var(--border-solid) 25%,var(--bg-elevated) 50%,var(--border-solid) 75%);
+    background-size:200% 100%; animation:shimmer 1.5s ease-in-out infinite;
+    border-radius:8px;
+}
+.skeleton-text { height:16px; margin-bottom:8px; }
+.skeleton-text.short { width:60%; }
+.skeleton-title { height:24px; width:40%; margin-bottom:12px; }
+.skeleton-card { height:120px; border-radius:var(--radius); }
+.skeleton-avatar { width:48px; height:48px; border-radius:50%; }
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:48px 24px; text-align:center;
+}
+.empty-state .empty-icon { font-size:56px; margin-bottom:16px; animation:pulse 3s ease-in-out infinite; }
+.empty-state .empty-title { font-size:18px; font-weight:600; margin-bottom:8px; color:var(--text); }
+.empty-state .empty-desc { font-size:14px; color:var(--text-muted); max-width:360px; margin-bottom:16px; }
+
+/* ===== RIPPLE EFFECT ===== */
+.ripple { position:relative; overflow:hidden; }
+.ripple-effect {
+    position:absolute; border-radius:50%; background:rgba(255,255,255,0.3);
+    transform:scale(0); animation:rippleAnim 0.6s ease-out forwards;
+    pointer-events:none;
+}
+@keyframes rippleAnim { to{transform:scale(4);opacity:0} }
+
+/* ===== NUMBER COUNTER ANIMATION ===== */
+.counter { display:inline-block; transition:all 0.3s; }
+
 /* ===== WEATHER ===== */
 .weather-current { display:flex; align-items:center; gap:30px; }
 .temp-big { font-size:72px; font-weight:800; letter-spacing:-3px; color:var(--accent); line-height:1; }
