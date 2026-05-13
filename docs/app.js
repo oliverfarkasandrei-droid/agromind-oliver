@@ -726,7 +726,19 @@ class ChartsPage extends Page {
         canvas.style.cssText = 'width:100%;height:380px'; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Grafic recolte');
         canvasWrap.appendChild(canvas); c.appendChild(canvasWrap);
         this.statsEl = this.el('div', 'cards'); c.appendChild(this.statsEl);
-        this.drawCanvas();
+        setTimeout(() => {
+            const tryDraw = (attempts) => {
+                const canvas = document.getElementById('harvest-chart');
+                if (!canvas) return;
+                const parent = canvas.parentElement;
+                if (parent.clientWidth > 0 || attempts >= 10) {
+                    this.drawCanvas();
+                } else {
+                    setTimeout(() => tryDraw(attempts + 1), 100);
+                }
+            };
+            tryDraw(0);
+        }, 50);
     }
     header(title) { const hdr = this.el('div', 'page-header'); hdr.appendChild(this.el('h2', null, title)); return hdr; }
     drawCanvas() {
