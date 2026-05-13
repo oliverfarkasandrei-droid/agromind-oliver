@@ -83,6 +83,27 @@ class Store {
     }
     migrate() {
         const d = this.data; if (!d.journals) d.journals = [];
+        // Seed default journal entries if empty
+        if (!d.journals.length) {
+            d.journals = [
+                {id:1,crop:'Tomate',date:'2026-05-10',qty:85,price:8.5,notes:'Prima recoltă, calitate foarte bună'},
+                {id:2,crop:'Tomate',date:'2026-05-25',qty:120,price:9,notes:'Recoltă abundentă'},
+                {id:3,crop:'Tomate',date:'2026-06-15',qty:200,price:8,notes:'Vârf de sezon'},
+                {id:4,crop:'Tomate',date:'2026-07-05',qty:65,price:10,notes:'Sfârșit sezon, calitate premium'},
+                {id:5,crop:'Cartofi',date:'2026-08-10',qty:450,price:3,notes:'Recoltă principală'},
+                {id:6,crop:'Cartofi',date:'2026-09-02',qty:180,price:3.5,notes:'Lotul 2, mai mici dar buni'},
+                {id:7,crop:'Grâu',date:'2026-06-20',qty:3500,price:1.8,notes:'Recoltat cu combina'},
+                {id:8,crop:'Grâu',date:'2026-07-10',qty:1200,price:1.9,notes:'Ultima tranșă, calitate panificație'},
+                {id:9,crop:'Porumb',date:'2026-08-25',qty:2800,price:2.5,notes:'Porumb boabe, maturitate optimă'},
+                {id:10,crop:'Porumb',date:'2026-09-15',qty:1200,price:2.6,notes:'Recoltă târzie, boabe mari'},
+                {id:11,crop:'Măr',date:'2026-09-10',qty:600,price:5,notes:'Soiul Jonathan, excelent'},
+                {id:12,crop:'Măr',date:'2026-10-05',qty:300,price:6,notes:'Mere târzii, păstrare iarnă'},
+                {id:13,crop:'Busuioc',date:'2026-06-01',qty:15,price:25,notes:'Prima tăiere'},
+                {id:14,crop:'Busuioc',date:'2026-07-01',qty:22,price:25,notes:'A doua tăiere, aroma intensă'},
+                {id:15,crop:'Busuioc',date:'2026-08-01',qty:12,price:28,notes:'Ultima tăiere, uscat pentru iarnă'},
+            ];
+        }
+        if (!d.lastId) d.lastId = {crop:6,disease:6,journal:15};
         if (!d.settings) d.settings = {theme:'auto',diagnosesUsed:0,lastWeatherCity:'',notificationsEnabled:false};
         if (d.settings.theme === undefined) d.settings.theme = 'auto';
         if (d.settings.notificationsEnabled === undefined) d.settings.notificationsEnabled = false;
